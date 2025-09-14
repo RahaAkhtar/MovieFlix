@@ -14,7 +14,8 @@ struct RemoteHeaderImage: View {
     let headerHeight: CGFloat
     
     var body: some View {
-        RemoteImageView(url: url)
+        //RemoteImageView(url: url)
+        KFBackdropImage(url: url, height: headerHeight)
             .frame(width: geometry.size.width, height: headerHeight)
             .clipped()
             .offset(y: scrollOffset * 0.3)
@@ -33,10 +34,16 @@ struct RemoteBlurBackground: View {
     let geometry: GeometryProxy
     
     var body: some View {
-        RemoteImageView(url: url)
+//        RemoteImageView(url: url)
+//            .frame(width: geometry.size.width)
+//            .blur(radius: 20)
+//            .opacity(0.3)
+//            .ignoresSafeArea()
+        KFPosterImage(url: url)
             .frame(width: geometry.size.width)
             .blur(radius: 20)
             .opacity(0.3)
             .ignoresSafeArea()
+
     }
 }

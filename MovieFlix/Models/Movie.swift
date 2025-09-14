@@ -5,7 +5,6 @@
 //  Created by Muhammad Akhtar on 10/09/2025.
 //
 
-
 import Foundation
 
 public struct Movie: Identifiable, Codable, Equatable {
@@ -39,12 +38,12 @@ public struct Movie: Identifiable, Codable, Equatable {
 public extension Movie {
     var posterURL: URL? {
         guard let path = posterPath else { return nil }
-        return URL(string: "https://image.tmdb.org/t/p/w500\(path)")
+        return URL(string: path)
     }
     
     var backdropURL: URL? {
         guard let path = backdropPath else { return nil }
-        return URL(string: "https://image.tmdb.org/t/p/w780\(path)")
+        return URL(string: path)
     }
     
     var year: String? {

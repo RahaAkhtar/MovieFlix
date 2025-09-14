@@ -6,7 +6,7 @@
 //
 
 import SwiftUI
-
+/*
 struct MovieDetailView: View {
     let movie: Movie
     
@@ -108,6 +108,159 @@ struct MovieDetailView: View {
         }
     }
 }
+*/
+
+struct MovieDetailView: View {
+    @StateObject private var viewModel: MovieDetailViewModel
+    @State private var scrollOffset: CGFloat = 0
+    @State private var showBottomSheet = false
+    @State private var inputImage: UIImage?
+    @State private var processedImage: UIImage?
+    @State private var isEditingImage = false
+    @Environment(\.dismiss) private var dismiss
+    
+    private let headerHeight: CGFloat = 350
+    
+    // Initialize with movie
+    init(movie: Movie) {
+        _viewModel = StateObject(wrappedValue: MovieDetailViewModel(movie: movie))
+    }
+    
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack(alignment: .top) {
+                // Background - use detailed movie if available
+                BackgroundView(
+                    backdropURL: viewModel.detailedMovie?.backdropURL ?? viewModel.movie.backdropURL,
+                    posterURL: viewModel.detailedMovie?.posterURL ?? viewModel.movie.posterURL,
+                    geometry: geometry,
+                    processedImage: processedImage
+                )
+                
+                // Content
+                ScrollView {
+                    VStack(spacing: 0) {
+                        // Header - use detailed movie if available
+                        HeaderView(
+                            movie: viewModel.detailedMovie ?? viewModel.movie,
+                            scrollOffset: scrollOffset,
+                            headerHeight: headerHeight,
+                            geometry: geometry,
+                            processedImage: processedImage
+                        )
+                        .frame(height: headerHeight)
+                        
+                        // Main Content - show loading or detailed content
+                        if viewModel.isLoading {
+                            LoadingDetailView()
+                        } else if let error = viewModel.errorMessage {
+                            ErrorDetailView(error: error, onRetry: viewModel.fetchMovieDetails)
+                        } else {
+                            MovieDetailContentView(
+                                movie: viewModel.detailedMovie ?? viewModel.movie,
+                                onShowDetails: { showBottomSheet = true },
+                                onEditImage: { isEditingImage = true }
+                            )
+                        }
+                    }
+                    .background(GeometryReader {
+                        Color.clear.preference(
+                            key: ViewOffsetKey.self,
+                            value: -$0.frame(in: .named("scroll")).origin.y
+                        )
+                    })
+                }
+                .disabled(showBottomSheet)
+                .coordinateSpace(name: "scroll")
+                .ignoresSafeArea(edges: .top)
+                .onPreferenceChange(ViewOffsetKey.self) { value in
+                    if !showBottomSheet { scrollOffset = value }
+                }
+                
+                // Navigation Bar
+                CustomNavigationBar(dismiss: dismiss)
+            }
+        }
+        .navigationBarHidden(true)
+        .sheet(isPresented: $showBottomSheet) {
+            BottomSheetView(movie: viewModel.detailedMovie ?? viewModel.movie, isPresented: $showBottomSheet)
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+                .presentationCornerRadius(24)
+        }
+        .sheet(isPresented: $isEditingImage) {
+            FullScreenImageEditorView(
+                inputImage: $inputImage,
+                processedImage: $processedImage,
+                isPresented: $isEditingImage
+            )
+        }
+        .task {
+            await loadInitialImage()
+            // Fetch detailed movie info if needed
+            if !viewModel.movie.hasCompleteData {
+                viewModel.fetchMovieDetails()
+            }
+        }
+        .onChange(of: processedImage) { _, newImage in
+            print("Image updated: \(newImage != nil)")
+        }
+    }
+    
+    private func loadInitialImage() async {
+        guard let url = viewModel.movie.backdropURL ?? viewModel.movie.posterURL else { return }
+        
+        do {
+            let (data, _) = try await URLSession.shared.data(from: url)
+            if let uiImage = UIImage(data: data) {
+                await MainActor.run {
+                    self.inputImage = uiImage
+                }
+            }
+        } catch {
+            print("Failed to preload image for editor: \(error)")
+        }
+    }
+}
+
+// Loading View for Detail
+struct LoadingDetailView: View {
+    var body: some View {
+        VStack {
+            ProgressView("Loading movie details...")
+                .padding()
+        }
+        .frame(height: 200)
+    }
+}
+
+// Error View for Detail
+struct ErrorDetailView: View {
+    let error: String
+    let onRetry: () -> Void
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "exclamationmark.triangle")
+                .font(.title)
+                .foregroundColor(.orange)
+            
+            Text("Couldn't load details")
+                .font(.headline)
+            
+            Text(error)
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+            
+            Button("Retry", action: onRetry)
+                .buttonStyle(.bordered)
+        }
+        .padding()
+        .frame(height: 200)
+    }
+}
+
 
 struct BackgroundView: View {
     let backdropURL: URL?

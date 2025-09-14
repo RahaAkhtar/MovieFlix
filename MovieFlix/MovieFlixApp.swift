@@ -7,9 +7,15 @@
 
 import SwiftUI
 import ComposableArchitecture
+import Kingfisher
 
 @main
 struct MovieFlixApp: App {
+    
+    init() {
+        configureKingfisher()
+    }
+    
     var body: some Scene {
         WindowGroup {
 //            MovieListView(
@@ -22,4 +28,16 @@ struct MovieFlixApp: App {
             MovieListView()
         }
     }
+    
+    private func configureKingfisher() {
+        // Set up cache
+        let cache = ImageCache.default
+        cache.memoryStorage.config.totalCostLimit = 1024 * 1024 * 100 // 100 MB
+        cache.diskStorage.config.sizeLimit = 1024 * 1024 * 500 // 500 MB
+        
+        // Set up downloader
+        let downloader = ImageDownloader.default
+        downloader.downloadTimeout = 30.0
+    }
+
 }

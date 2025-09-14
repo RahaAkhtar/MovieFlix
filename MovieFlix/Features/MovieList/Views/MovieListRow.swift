@@ -6,7 +6,7 @@
 //
 
 import SwiftUI
-
+/*
 struct MovieListRow: View {
     let movie: Movie
     
@@ -67,6 +67,55 @@ struct MovieListRow: View {
             return .orange
         default:
             return .red
+        }
+    }
+}
+*/
+
+struct MovieListRow: View {
+    let movie: Movie
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            // Movie poster
+            KFPosterImage(url: movie.posterURL)
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text(movie.title)
+                    .font(.headline)
+                    .lineLimit(1)
+                
+                if let year = movie.year {
+                    Text("Year: \(year)")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+                
+                Text("Type: \(movie.mediaType)")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+            
+            Spacer()
+            
+            // Rating
+            Text(String(format: "%.1f", movie.voteAverage))
+                .font(.system(size: 14, weight: .bold))
+                .foregroundColor(.white)
+                .padding(8)
+                .background(
+                    Circle()
+                        .fill(getRatingColor(movie.voteAverage))
+                )
+        }
+        .padding(.vertical, 4)
+    }
+    
+    private func getRatingColor(_ rating: Double) -> Color {
+        switch rating {
+        case 8.0...: return .green
+        case 6.0..<8.0: return .orange
+        default: return .red
         }
     }
 }
