@@ -53,6 +53,24 @@ public extension Movie {
 }
 
 
+extension Movie {
+    var hasCompleteData: Bool {
+        // Use the properties that actually exist in your model
+        let hasOverview = !(overview ?? "").isEmpty
+        let hasStaff = !(staff ?? []).isEmpty
+        let hasRuntime = (runtime ?? 0) > 0
+        let hasBudget = (budget ?? 0) > 0
+        
+        // Adjust this based on what constitutes "complete data" for your app
+        return hasOverview && hasStaff && hasRuntime && hasBudget
+    }
+    
+    // Helper to get IMDb ID from the id
+    var imdbID: String {
+        return "tt\(id)" // Convert numeric ID back to IMDb format
+    }
+}
+
 //struct Movie: Identifiable {
 //    let id: Int
 //    let title: String

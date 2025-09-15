@@ -10,15 +10,20 @@ import SwiftUI
 import CoreImage
 import CoreImage.CIFilterBuiltins
 
-enum FilterType: String, CaseIterable {
+public enum FilterType: String, CaseIterable, Equatable {
+    case none = "Original"
     case sepia, noir, chrome, instant, process, transfer, tonal, vignette, bloom, gloom
     
     var displayName: String {
-        rawValue.capitalized
+        switch self {
+        case .none: return "Original"
+        default: return rawValue.capitalized
+        }
     }
     
-    var ciFilter: CIFilter {
+    var ciFilter: CIFilter? {
         switch self {
+        case .none: return nil
         case .sepia: return CIFilter.sepiaTone()
         case .noir: return CIFilter.photoEffectNoir()
         case .chrome: return CIFilter.photoEffectChrome()
@@ -33,8 +38,8 @@ enum FilterType: String, CaseIterable {
     }
     
     var supportsIntensity: Bool {
-        // Check which filters actually have intensity parameters
         switch self {
+        case .none: return false
         case .sepia, .vignette, .bloom, .gloom:
             return true
         case .noir, .chrome, .instant, .process, .transfer, .tonal:
@@ -52,6 +57,7 @@ enum FilterType: String, CaseIterable {
         }
     }
 }
+
 
 struct FilterPreviewButton: View {
     let filterType: FilterType

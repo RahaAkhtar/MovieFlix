@@ -5,44 +5,43 @@
 //  Created by Muhammad Akhtar on 14/09/2025.
 //
 
-
 import Foundation
 
-struct APIUrls {
+public struct APIUrls {
     private static let baseURL = "https://www.omdbapi.com/"
     private static let apiKey = "205d20b5"
     
     // MARK: - Movie List URLs
-    static func movieListURL(searchQuery: String, page: Int) -> URL? {
+    public static func movieListURL(searchQuery: String, page: Int) -> URL? {
         let encodedQuery = searchQuery.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? searchQuery
         let urlString = "\(baseURL)?s=\(encodedQuery)&page=\(page)&apikey=\(apiKey)"
         return URL(string: urlString)
     }
     
     // MARK: - Movie Detail URL
-    static func movieDetailURL(imdbID: String) -> URL? {
+    public static func movieDetailURL(imdbID: String) -> URL? {
         let urlString = "\(baseURL)?i=\(imdbID)&apikey=\(apiKey)"
         return URL(string: urlString)
     }
     
     // MARK: - Popular Movie Categories
-    struct Categories {
-        static let action = "action"
-        static let comedy = "comedy"
-        static let drama = "drama"
-        static let adventure = "adventure"
-        static let horror = "horror"
-        static let sciFi = "sci-fi"
-        static let thriller = "thriller"
-        static let animation = "animation"
-        static let fantasy = "fantasy"
+    public struct Categories {
+        public static let action = "action"
+        public static let comedy = "comedy"
+        public static let drama = "drama"
+        public static let adventure = "adventure"
+        public static let horror = "horror"
+        public static let sciFi = "sci-fi"
+        public static let thriller = "thriller"
+        public static let animation = "animation"
+        public static let fantasy = "fantasy"
         
-        static let all: [String] = [
+        public static let all: [String] = [
             action, comedy, drama, adventure, 
             horror, sciFi, thriller, animation, fantasy
         ]
         
-        static func displayName(for category: String) -> String {
+        public static func displayName(for category: String) -> String {
             switch category {
             case action: return "Action"
             case comedy: return "Comedy"

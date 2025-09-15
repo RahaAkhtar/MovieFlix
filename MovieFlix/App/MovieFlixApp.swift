@@ -14,18 +14,17 @@ struct MovieFlixApp: App {
     
     init() {
         configureKingfisher()
+        configureDependencies()
     }
     
     var body: some Scene {
         WindowGroup {
-//            MovieListView(
-//                store: Store(
-//                    initialState: MovieListFeature.State(),
-//                    reducer: { MovieListFeature() }
-//                )
-//            )
-            
-            MovieListView()
+            MovieListView(
+                store: Store(
+                    initialState: MovieListFeature.State(),
+                    reducer: { MovieListFeature() }
+                )
+            )
         }
     }
     
@@ -39,5 +38,8 @@ struct MovieFlixApp: App {
         let downloader = ImageDownloader.default
         downloader.downloadTimeout = 30.0
     }
-
+    
+    private func configureDependencies() {
+        DependencyConfiguration.configure()
+    }
 }

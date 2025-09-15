@@ -2,10 +2,11 @@
 //  MovieDetailContentView.swift
 //  MovieFlix
 //
-//  Created by Muhammad Akhtar on 12/09/2025.
+//  Created by Muhammad Akhtar on 10/09/2025.
 //
 
 import SwiftUI
+import Kingfisher
 
 struct MovieDetailContentView: View {
     let movie: Movie

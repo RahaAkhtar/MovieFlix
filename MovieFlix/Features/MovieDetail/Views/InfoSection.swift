@@ -65,3 +65,4 @@ struct InfoItem: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
+
