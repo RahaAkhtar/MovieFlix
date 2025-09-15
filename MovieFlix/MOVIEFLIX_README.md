@@ -95,7 +95,7 @@ Installation
 
 Clone the repository:
 bash
-git clone https://github.com/your-username/MovieFlix.git
+git clone https://github.com/RahaAkhtar/MovieFlix.git
 Open MovieFlix.xcodeproj in Xcode
 Add your OMDb API key in DependencyConfiguration.swift:
 swift
