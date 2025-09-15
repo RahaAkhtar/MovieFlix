@@ -7,18 +7,26 @@
 
 import Foundation
 import Dependencies
+import ComposableArchitecture
 
-public protocol MovieServiceProtocol {
+// MARK: - Movie Service Protocol
+protocol MovieServiceProtocol {
     func fetchMovies(searchQuery: String, page: Int) async throws -> [Movie]
     func fetchMovieDetails(imdbID: String) async throws -> Movie
 }
 
-public final class MovieService: MovieServiceProtocol {
+// MARK: - Movie Service Implementation
+final class MovieService: MovieServiceProtocol {
+    
+    // MARK: - Dependencies
     @Dependency(\.httpClient) private var httpClient
     
-    public init() {}
+    // MARK: - Initialization
+    init() {}
     
-    public func fetchMovies(searchQuery: String, page: Int) async throws -> [Movie] {
+    // MARK: - Public Methods
+    
+    func fetchMovies(searchQuery: String, page: Int) async throws -> [Movie] {
         guard let url = APIUrls.movieListURL(searchQuery: searchQuery, page: page) else {
             throw NetworkError.invalidURL
         }
@@ -26,15 +34,10 @@ public final class MovieService: MovieServiceProtocol {
         let request = Request<OMDbSearchResponse>(url: url)
         let response = try await httpClient.send(request)
         
-        // Check if the API returned an error
-        if response.response.lowercased() == "false", let errorMessage = response.error {
-            throw NetworkError.serverError(400, errorMessage)
-        }
-        
-        return response.movies.map { $0.toMovie() }
+        return try processMoviesResponse(response)
     }
     
-    public func fetchMovieDetails(imdbID: String) async throws -> Movie {
+    func fetchMovieDetails(imdbID: String) async throws -> Movie {
         guard let url = APIUrls.movieDetailURL(imdbID: imdbID) else {
             throw NetworkError.invalidURL
         }
@@ -44,6 +47,17 @@ public final class MovieService: MovieServiceProtocol {
         
         return response.toMovie()
     }
+    
+    // MARK: - Private Methods
+    
+    private func processMoviesResponse(_ response: OMDbSearchResponse) throws -> [Movie] {
+        // Check if the API returned an error
+        if response.response.lowercased() == "false", let errorMessage = response.error {
+            throw NetworkError.serverError(400, errorMessage)
+        }
+        
+        return response.movies.map { $0.toMovie() }
+    }
 }
 
 // MARK: - Dependency Key
@@ -52,29 +66,35 @@ private enum MovieServiceKey: DependencyKey {
     static let testValue: MovieServiceProtocol = MockMovieService()
 }
 
+// MARK: - Dependency Values Extension
 extension DependencyValues {
-    public var movieService: MovieServiceProtocol {
+    var movieService: MovieServiceProtocol {
         get { self[MovieServiceKey.self] }
         set { self[MovieServiceKey.self] = newValue }
     }
 }
 
-// MARK: - Mock Service for Testing
-public final class MockMovieService: MovieServiceProtocol {
-    public var movies: [Movie] = []
-    public var movieDetails: [String: Movie] = [:]
-    public var errors: [String: Error] = [:]
+// MARK: - Mock Movie Service
+final class MockMovieService: MovieServiceProtocol {
     
-    public init() {}
+    // MARK: - Properties
+    var movies: [Movie] = []
+    var movieDetails: [String: Movie] = [:]
+    var errors: [String: Error] = [:]
     
-    public func fetchMovies(searchQuery: String, page: Int) async throws -> [Movie] {
+    // MARK: - Initialization
+    init() {}
+    
+    // MARK: - Public Methods
+    
+    func fetchMovies(searchQuery: String, page: Int) async throws -> [Movie] {
         if let error = errors["movies_\(searchQuery)_\(page)"] {
             throw error
         }
         return movies
     }
     
-    public func fetchMovieDetails(imdbID: String) async throws -> Movie {
+    func fetchMovieDetails(imdbID: String) async throws -> Movie {
         if let error = errors["details_\(imdbID)"] {
             throw error
         }
@@ -84,15 +104,17 @@ public final class MockMovieService: MovieServiceProtocol {
         return movie
     }
     
-    public func setMovies(_ movies: [Movie]) {
+    // MARK: - Configuration Methods
+    
+    func setMovies(_ movies: [Movie]) {
         self.movies = movies
     }
     
-    public func setMovieDetails(_ movie: Movie, for imdbID: String) {
+    func setMovieDetails(_ movie: Movie, for imdbID: String) {
         self.movieDetails[imdbID] = movie
     }
     
-    public func setError(_ error: Error, for key: String) {
+    func setError(_ error: Error, for key: String) {
         self.errors[key] = error
     }
 }

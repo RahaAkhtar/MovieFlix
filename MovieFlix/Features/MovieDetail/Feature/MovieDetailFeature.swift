@@ -9,22 +9,26 @@ import Foundation
 import ComposableArchitecture
 import Dependencies
 
+// MARK: - Movie Detail Feature
 @Reducer
-public struct MovieDetailFeature {
+struct MovieDetailFeature {
+    
+    // MARK: - State
     @ObservableState
-    public struct State: Equatable {
-        public var movie: Movie
-        public var detailedMovie: Movie?
-        public var isLoading = false
-        public var errorMessage: String?
-        public var isImageEditorPresented = false
+    struct State: Equatable {
+        var movie: Movie
+        var detailedMovie: Movie?
+        var isLoading = false
+        var errorMessage: String?
+        var isImageEditorPresented = false
         
-        public init(movie: Movie) {
+        init(movie: Movie) {
             self.movie = movie
         }
     }
     
-    public enum Action: Equatable {
+    // MARK: - Action
+    enum Action: Equatable {
         case onAppear
         case fetchMovieDetails
         case movieDetailsResponse(Result<Movie, NetworkError>)
@@ -33,57 +37,89 @@ public struct MovieDetailFeature {
         case imageEditorDismissed
     }
     
+    // MARK: - Dependencies
     @Dependency(\.movieService) var movieService
     
-    public init() {}
+    // MARK: - Initialization
+    init() {}
     
-    public var body: some ReducerOf<Self> {
+    // MARK: - Reducer Body
+    var body: some ReducerOf<Self> {
         Reduce { state, action in
             switch action {
             case .onAppear:
-                return .send(.fetchMovieDetails)
+                return handleOnAppear()
                 
             case .fetchMovieDetails:
-                state.isLoading = true
-                state.errorMessage = nil
-                
-                return .run { [imdbID = state.movie.imdbID] send in
-                    do {
-                        let detailedMovie = try await movieService.fetchMovieDetails(imdbID: String(imdbID))
-                        await send(.movieDetailsResponse(.success(detailedMovie)))
-                    } catch {
-                        await send(.movieDetailsResponse(.failure(error as? NetworkError ?? NetworkError.unknown)))
-                    }
-                }
+                return handleFetchMovieDetails(&state)
                 
             case let .movieDetailsResponse(.success(detailedMovie)):
-                state.isLoading = false
-                state.detailedMovie = detailedMovie
-                return .none
+                return handleMovieDetailsSuccess(&state, movie: detailedMovie)
                 
             case let .movieDetailsResponse(.failure(error)):
-                state.isLoading = false
-                state.errorMessage = error.localizedDescription
-                return .none
+                return handleMovieDetailsFailure(&state, error: error)
                 
             case .retry:
-                return .send(.fetchMovieDetails)
+                return handleRetry()
                 
             case .imageEditorTapped:
-                state.isImageEditorPresented = true
-                return .none
+                return handleImageEditorTapped(&state)
                 
             case .imageEditorDismissed:
-                state.isImageEditorPresented = false
-                return .none
+                return handleImageEditorDismissed(&state)
             }
         }
     }
+    
+    // MARK: - Action Handlers
+    private func handleOnAppear() -> Effect<Action> {
+        return .send(.fetchMovieDetails)
+    }
+    
+    private func handleFetchMovieDetails(_ state: inout State) -> Effect<Action> {
+        state.isLoading = true
+        state.errorMessage = nil
+        
+        return .run { [imdbID = state.movie.imdbID] send in
+            do {
+                let detailedMovie = try await movieService.fetchMovieDetails(imdbID: String(imdbID))
+                await send(.movieDetailsResponse(.success(detailedMovie)))
+            } catch {
+                await send(.movieDetailsResponse(.failure(error as? NetworkError ?? NetworkError.unknown)))
+            }
+        }
+    }
+    
+    private func handleMovieDetailsSuccess(_ state: inout State, movie: Movie) -> Effect<Action> {
+        state.isLoading = false
+        state.detailedMovie = movie
+        return .none
+    }
+    
+    private func handleMovieDetailsFailure(_ state: inout State, error: NetworkError) -> Effect<Action> {
+        state.isLoading = false
+        state.errorMessage = error.localizedDescription
+        return .none
+    }
+    
+    private func handleRetry() -> Effect<Action> {
+        return .send(.fetchMovieDetails)
+    }
+    
+    private func handleImageEditorTapped(_ state: inout State) -> Effect<Action> {
+        state.isImageEditorPresented = true
+        return .none
+    }
+    
+    private func handleImageEditorDismissed(_ state: inout State) -> Effect<Action> {
+        state.isImageEditorPresented = false
+        return .none
+    }
 }
 
-// MARK: - Computed Properties
+// MARK: - State Computed Properties
 extension MovieDetailFeature.State {
-    public var displayMovie: Movie {
+    var displayMovie: Movie {
         detailedMovie ?? movie
     }
 }

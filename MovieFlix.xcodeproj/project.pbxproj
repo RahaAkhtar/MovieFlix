@@ -38,7 +38,7 @@
 		A463D7B52E71AA2C00D8E20A /* Exceptions for "MovieFlix" folder in "MovieFlix" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				Core/Utils/AlertState.swift,
+				Core/Utils/Extensions/AlertState.swift,
 				Info.plist,
 			);
 			target = A463D7672E71837400D8E20A /* MovieFlix */;
@@ -50,7 +50,7 @@
 			isa = PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet;
 			buildPhase = A463D7662E71837400D8E20A /* Resources */;
 			membershipExceptions = (
-				Core/Utils/AlertState.swift,
+				Core/Utils/Extensions/AlertState.swift,
 			);
 		};
 /* End PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
