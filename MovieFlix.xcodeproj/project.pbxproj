@@ -10,7 +10,6 @@
 		A441BA382E7744DE00685E9C /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = A441BA372E7744DE00685E9C /* Kingfisher */; };
 		A463D79A2E71955800D8E20A /* ComposableArchitecture in Frameworks */ = {isa = PBXBuildFile; productRef = A463D7992E71955800D8E20A /* ComposableArchitecture */; };
 		A48580152E7897AD00DB929B /* ComposableArchitecture in Frameworks */ = {isa = PBXBuildFile; productRef = A48580142E7897AD00DB929B /* ComposableArchitecture */; };
-		BB2D3442AB504BDDB5BDE67E /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 891F5B416950873B45BDE67E /* README.md */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXBuildRule section */
@@ -251,7 +250,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				BB2D3442AB504BDDB5BDE67E /* README.md in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
