@@ -7,9 +7,6 @@
 
 import SwiftUI
 import Kingfisher
-import ComposableArchitecture
-
-import SwiftUI
 
 // MARK: - Main Image Editor View
 struct FullScreenImageEditorView: View {

@@ -279,14 +279,14 @@ struct HeaderView: View {
             .aspectRatio(contentMode: .fill)
             .frame(width: geometry.size.width, height: headerHeight)
             .clipped()
-            .offset(y: scrollOffset * 0.3)
+            .offset(y: scrollOffset * 0.2) // ← PARALLAX EFFECT HERE
             .overlay(gradientOverlay)
     }
     
     private var remoteBackgroundImage: some View {
         RemoteHeaderImage(
             url: movie.backdropURL ?? movie.posterURL,
-            scrollOffset: scrollOffset,
+            scrollOffset: scrollOffset, // ← Scroll offset passed for parallax
             geometry: geometry,
             headerHeight: headerHeight
         )
