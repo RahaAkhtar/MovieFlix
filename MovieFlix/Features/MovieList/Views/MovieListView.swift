@@ -8,20 +8,15 @@
 import SwiftUI
 import ComposableArchitecture
 
-
-// MARK: - Movie List View
 struct MovieListView: View {
-    
-    // MARK: - Properties
+
     @Bindable var store: StoreOf<MovieListFeature>
     @State private var selectedMovie: Movie? = nil
-    
-    // MARK: - Initialization
+
     init(store: StoreOf<MovieListFeature>) {
         self.store = store
     }
-    
-    // MARK: - Body
+
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
@@ -39,9 +34,7 @@ struct MovieListView: View {
             }
         }
     }
-    
-    // MARK: - Subviews
-    
+
     private var categoryPicker: some View {
         CategoryPickerView(
             selectedCategory: $store.selectedCategory.sending(\.selectCategory),
@@ -51,21 +44,33 @@ struct MovieListView: View {
             }
         )
     }
-    
+
     private var searchAndFilterBar: some View {
         VStack(spacing: 12) {
             SearchBar(
                 text: $store.searchText.sending(\.searchTextChanged),
                 placeholder: "Search movies..."
             )
-            
+
+            // Inline search loading indicator (only when searching)
+            if store.isSearching {
+                HStack(spacing: 8) {
+                    ProgressView()
+                        .scaleEffect(0.7)
+                    Text("Searching…")
+                        .foregroundColor(.secondary)
+                        .font(.caption)
+                }
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+
             sortPicker
         }
         .padding(.vertical, 12)
         .background(Color(.systemBackground))
         .shadow(color: .black.opacity(0.05), radius: 2, x: 0, y: 2)
     }
-    
+
     private var sortPicker: some View {
         Picker("Sort by", selection: $store.sortOption.sending(\.sortOptionChanged)) {
             ForEach(MovieListFeature.State.SortOption.allCases, id: \.self) { option in
@@ -75,7 +80,7 @@ struct MovieListView: View {
         .pickerStyle(SegmentedPickerStyle())
         .padding(.horizontal)
     }
-    
+
     private var moviesListContent: some View {
         ZStack {
             if store.movies.isEmpty {
@@ -86,12 +91,12 @@ struct MovieListView: View {
         }
         .background(Color(.systemGroupedBackground))
     }
-    
+
     private var emptyStateView: some View {
         Group {
-            if store.isLoading {
+            if store.isLoadingInitial {
                 loadingView
-            } else if let error = store.errorMessage {
+            } else if let _ = store.errorMessage {
                 errorView
             } else {
                 noMoviesView
@@ -99,35 +104,40 @@ struct MovieListView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
-    
+
     private var loadingView: some View {
-        ProgressView("Loading \(APIUrls.Categories.displayName(for: store.selectedCategory)) movies...")
+        ProgressView("Loading \(APIUrls.Categories.displayName(for: store.selectedCategory)) movies…")
     }
-    
+
     private var errorView: some View {
         ErrorView(error: store.errorMessage ?? "Unknown error", onRetry: {
             store.send(.retry)
         })
     }
-    
+
     private var noMoviesView: some View {
         Text("No movies found")
             .foregroundColor(.secondary)
     }
-    
+
     private var moviesListView: some View {
         List {
             ForEach(store.filteredMovies) { movie in
                 movieRow(movie: movie)
             }
-            
+
             if store.hasMorePages && store.searchText.isEmpty {
-                loadingRow
+                // show pagination row
+                LoadingRow(isLoading: store.isLoadingNextPage)
             }
         }
         .listStyle(PlainListStyle())
+        // Pull-to-refresh (iOS 15+)
+        .refreshable {
+            store.send(.refresh)
+        }
     }
-    
+
     private func movieRow(movie: Movie) -> some View {
         Button {
             handleMovieSelection(movie)
@@ -142,30 +152,25 @@ struct MovieListView: View {
         .listRowSeparatorTint(.gray.opacity(0.2))
         .listRowBackground(Color.clear)
     }
-    
-    private var loadingRow: some View {
-        LoadingRow(isLoading: store.isLoading)
-            .listRowBackground(Color.clear)
-    }
-    
-    // MARK: - Methods
-    
+
     private func handleMovieSelection(_ movie: Movie) {
         selectedMovie = movie
         store.send(.movieTapped(movie))
     }
-    
+
     private func handlePagination(for movie: Movie) {
+        // disable pagination while searching
+        guard store.searchText.isEmpty else { return }
+
         if movie.id == store.movies.last?.id {
             store.send(.loadNextPage)
         }
     }
 }
 
-// MARK: - Loading Row
 struct LoadingRow: View {
     let isLoading: Bool
-    
+
     var body: some View {
         HStack {
             Spacer()
@@ -179,34 +184,4 @@ struct LoadingRow: View {
         }
         .padding()
     }
-}
-
-// MARK: - Previews
-#Preview {
-    MovieListView(
-        store: Store(
-            initialState: MovieListFeature.State(),
-            reducer: { MovieListFeature() }
-        )
-    )
-}
-
-#Preview("Loading State") {
-    MovieListView(
-        store: Store(
-            initialState: MovieListFeature.State(isLoading: true),
-            reducer: { MovieListFeature() }
-        )
-    )
-}
-
-#Preview("Error State") {
-    MovieListView(
-        store: Store(
-            initialState: MovieListFeature.State(
-                errorMessage: "Failed to load movies. Please check your internet connection."
-            ),
-            reducer: { MovieListFeature() }
-        )
-    )
 }

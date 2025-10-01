@@ -9,190 +9,252 @@ import Foundation
 import ComposableArchitecture
 import Dependencies
 
-// MARK: - Movie List Feature
 @Reducer
 struct MovieListFeature {
-    
-    // MARK: - State
+
     @ObservableState
     struct State: Equatable {
         var movies: [Movie] = []
-        var isLoading = false
+
+        // Separate loading flags
+        var isLoadingInitial: Bool = false   // first load / category load
+        var isSearching: Bool = false        // inline search loading
+        var isLoadingNextPage: Bool = false  // pagination
+        var isRefreshing: Bool = false       // pull-to-refresh
+
         var errorMessage: String?
         var hasMorePages = true
         var selectedCategory: String = "action"
         var searchText = ""
         var sortOption: SortOption = .title
         var currentPage = 1
-        
-        // MARK: - Sort Options
+
         enum SortOption: String, CaseIterable, Equatable {
             case title = "Title"
             case year = "Year"
             case rating = "Rating"
         }
-        
-        // MARK: - Initialization
+
         public init() {}
-        
-        // MARK: - Test Initializer
-        public init(
-            movies: [Movie] = [],
-            isLoading: Bool = false,
-            errorMessage: String? = nil,
-            hasMorePages: Bool = true,
-            selectedCategory: String = "action",
-            searchText: String = "",
-            sortOption: SortOption = .title,
-            currentPage: Int = 1
-        ) {
-            self.movies = movies
-            self.isLoading = isLoading
-            self.errorMessage = errorMessage
-            self.hasMorePages = hasMorePages
-            self.selectedCategory = selectedCategory
-            self.searchText = searchText
-            self.sortOption = sortOption
-            self.currentPage = currentPage
-        }
     }
-    
-    // MARK: - Action
+
     enum Action: Equatable {
         case onAppear
-        case fetchMovies
-        case moviesResponse(Result<[Movie], NetworkError>)
-        case loadNextPage
+        case fetchMovies                // initial/category/search fetch (uses state.currentPage)
+        case loadNextPage               // pagination trigger
+        case refresh                    // pull-to-refresh
+        case moviesResponseSuccess([Movie], Int) // movies + page
+        case moviesResponseFailure(NetworkError, Int)
         case selectCategory(String)
         case searchTextChanged(String)
         case sortOptionChanged(State.SortOption)
         case retry
         case movieTapped(Movie)
     }
-    
-    // MARK: - Dependencies
+
     @Dependency(\.movieService) var movieService
-    
-    // MARK: - Initialization
+
+    enum CancelID { case search }
+
     public init() {}
-    
-    // MARK: - Reducer Body
+
     var body: some ReducerOf<Self> {
         Reduce { state, action in
             switch action {
             case .onAppear:
-                return handleOnAppear()
-                
+                return .send(.fetchMovies)
+
             case .fetchMovies:
                 return handleFetchMovies(&state)
-                
-            case let .moviesResponse(.success(movies)):
-                return handleMoviesSuccess(&state, movies: movies)
-                
-            case let .moviesResponse(.failure(error)):
-                return handleMoviesFailure(&state, error: error)
-                
+
+            case let .moviesResponseSuccess(movies, page):
+                return handleMoviesSuccess(&state, movies: movies, page: page)
+
+            case let .moviesResponseFailure(error, page):
+                return handleMoviesFailure(&state, error: error, page: page)
+
             case .loadNextPage:
-                return handleLoadNextPage()
-                
+                return handleLoadNextPage(&state)
+
             case let .selectCategory(category):
                 return handleSelectCategory(&state, category: category)
-                
+
             case let .searchTextChanged(text):
                 return handleSearchTextChanged(&state, text: text)
-                
+
             case let .sortOptionChanged(option):
                 return handleSortOptionChanged(&state, option: option)
-                
+
             case .retry:
                 return handleRetry()
-                
+
+            case .refresh:
+                return handleRefresh(&state)
+
             case .movieTapped:
-                return handleMovieTapped()
+                return .none
             }
         }
     }
-    
-    // MARK: - Action Handlers
-    
-    private func handleOnAppear() -> Effect<Action> {
-        return .send(.fetchMovies)
-    }
-    
+
+    // MARK: - Handlers
+
     private func handleFetchMovies(_ state: inout State) -> Effect<Action> {
-        guard !state.isLoading && state.hasMorePages else {
+        // Prevent overlapping initial/search fetches
+        guard !state.isLoadingInitial && !state.isSearching && !state.isRefreshing else {
             return .none
         }
-        
-        state.isLoading = true
+
+        let isSearch = !state.searchText.isEmpty
+
+        // set appropriate flag for UI
+        if state.currentPage == 1 {
+            if isSearch {
+                state.isSearching = true
+            } else {
+                state.isLoadingInitial = true
+            }
+        } else {
+            // should not usually happen; pagination uses loadNextPage handler
+            state.isLoadingNextPage = true
+        }
+
         state.errorMessage = nil
-        
-        return .run { [category = state.selectedCategory, page = state.currentPage] send in
+        let page = state.currentPage
+        let query = isSearch ? state.searchText : state.selectedCategory
+
+        return .run { send in
             do {
-                let movies = try await movieService.fetchMovies(searchQuery: category, page: page)
-                await send(.moviesResponse(.success(movies)))
+                let movies = try await movieService.fetchMovies(searchQuery: query, page: page)
+                await send(.moviesResponseSuccess(movies, page))
             } catch {
-                await send(.moviesResponse(.failure(error as? NetworkError ?? NetworkError.unknown)))
+                await send(.moviesResponseFailure(error as? NetworkError ?? .unknown, page))
             }
         }
     }
-    
-    private func handleMoviesSuccess(_ state: inout State, movies: [Movie]) -> Effect<Action> {
-        state.isLoading = false
-        state.movies.append(contentsOf: movies)
-        state.currentPage += 1
+
+    private func handleLoadNextPage(_ state: inout State) -> Effect<Action> {
+        // Only allow pagination when not searching and when not already loading
+        guard state.hasMorePages &&
+              !state.isLoadingNextPage &&
+              !state.isLoadingInitial &&
+              !state.isRefreshing &&
+              !state.isSearching else {
+            return .none
+        }
+
+        state.isLoadingNextPage = true
+        state.errorMessage = nil
+        let page = state.currentPage
+        let query = state.searchText.isEmpty ? state.selectedCategory : state.searchText
+
+        return .run { send in
+            do {
+                let movies = try await movieService.fetchMovies(searchQuery: query, page: page)
+                await send(.moviesResponseSuccess(movies, page))
+            } catch {
+                await send(.moviesResponseFailure(error as? NetworkError ?? .unknown, page))
+            }
+        }
+    }
+
+    private func handleRefresh(_ state: inout State) -> Effect<Action> {
+        guard !state.isRefreshing else { return .none }
+        state.isRefreshing = true
+        state.errorMessage = nil
+        state.currentPage = 1
+        state.hasMorePages = true
+
+        let page = 1
+        let query = state.searchText.isEmpty ? state.selectedCategory : state.searchText
+
+        return .run { send in
+            do {
+                let movies = try await movieService.fetchMovies(searchQuery: query, page: page)
+                await send(.moviesResponseSuccess(movies, page))
+            } catch {
+                await send(.moviesResponseFailure(error as? NetworkError ?? .unknown, page))
+            }
+        }
+    }
+
+    private func handleMoviesSuccess(_ state: inout State, movies: [Movie], page: Int) -> Effect<Action> {
+        // reset loading flags relevant to this response
+        if page == 1 {
+            state.isLoadingInitial = false
+            state.isRefreshing = false
+            state.isSearching = false
+
+            // replace the list on page 1 (initial / search / refresh)
+            state.movies = movies
+            state.currentPage = movies.isEmpty ? 1 : 2
+        } else {
+            state.isLoadingNextPage = false
+            state.movies.append(contentsOf: movies)
+            state.currentPage += 1
+        }
+
         state.hasMorePages = !movies.isEmpty
         return .none
     }
-    
-    private func handleMoviesFailure(_ state: inout State, error: NetworkError) -> Effect<Action> {
-        state.isLoading = false
-        state.errorMessage = error.localizedDescription
+
+    private func handleMoviesFailure(_ state: inout State, error: NetworkError, page: Int) -> Effect<Action> {
+        if page == 1 {
+            state.isLoadingInitial = false
+            state.isRefreshing = false
+            state.isSearching = false
+            state.errorMessage = error.localizedDescription
+        } else {
+            state.isLoadingNextPage = false
+            // for page > 1 you might show a toast; we still set an error message so UI can surface it if desired
+            state.errorMessage = error.localizedDescription
+        }
         return .none
     }
-    
-    private func handleLoadNextPage() -> Effect<Action> {
-        return .send(.fetchMovies)
-    }
-    
+
     private func handleSelectCategory(_ state: inout State, category: String) -> Effect<Action> {
         guard category != state.selectedCategory else {
             return .none
         }
-        
         state.selectedCategory = category
         state.movies = []
         state.currentPage = 1
         state.hasMorePages = true
         return .send(.fetchMovies)
     }
-    
+
     private func handleSearchTextChanged(_ state: inout State, text: String) -> Effect<Action> {
         state.searchText = text
-        return .none
+        state.movies = []
+        state.currentPage = 1
+        state.hasMorePages = true
+
+        // Debounce search input
+        return .concatenate(
+            .cancel(id: CancelID.search),
+            .run { send in
+                try await Task.sleep(nanoseconds: 400_000_000) // 0.4s
+                await send(.fetchMovies)
+            }
+            .cancellable(id: CancelID.search)
+        )
     }
-    
+
     private func handleSortOptionChanged(_ state: inout State, option: State.SortOption) -> Effect<Action> {
         state.sortOption = option
         return .none
     }
-    
+
     private func handleRetry() -> Effect<Action> {
         return .send(.fetchMovies)
     }
-    
-    private func handleMovieTapped() -> Effect<Action> {
-        return .none
-    }
 }
 
-// MARK: - State Computed Properties
+// MARK: - Computed (sorting)
 extension MovieListFeature.State {
     var filteredMovies: [Movie] {
-        let filtered = searchText.isEmpty ? movies : movies.filter {
-            $0.title.localizedCaseInsensitiveContains(searchText)
-        }
-        
+        // API provides search results; client-side filtering is removed (sorting remains)
+        let filtered = movies
         switch sortOption {
         case .title:
             return sortByTitle(filtered)
@@ -202,22 +264,56 @@ extension MovieListFeature.State {
             return sortByRating(filtered)
         }
     }
-    
-    // MARK: - Sorting Methods
-    
+
     private func sortByTitle(_ movies: [Movie]) -> [Movie] {
         movies.sorted { $0.title < $1.title }
     }
-    
-    private func sortByYear(_ movies: [Movie]) -> [Movie] {
-        movies.sorted {
-            let year1 = Int($0.releaseDate ?? "") ?? 0
-            let year2 = Int($1.releaseDate ?? "") ?? 0
-            return year1 > year2
-        }
-    }
-    
+
     private func sortByRating(_ movies: [Movie]) -> [Movie] {
         movies.sorted { $0.voteAverage > $1.voteAverage }
     }
+    
+    private func sortByYear(_ movies: [Movie]) -> [Movie] {
+        movies.sorted { a, b in
+            let y1 = YearParser.fastYear(from: a.releaseDate)
+            let y2 = YearParser.fastYear(from: b.releaseDate)
+
+            if y1 == y2 {
+                return a.title < b.title // tiebreaker
+            }
+            return y1 > y2 // newest first
+        }
+    }
+
+    private enum YearParser {
+        private static let regex: NSRegularExpression = {
+            try! NSRegularExpression(pattern: "\\b(19|20)\\d{2}\\b", options: [])
+        }()
+
+        static func fastYear(from raw: String?) -> Int {
+            guard let raw = raw?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty else {
+                return 0
+            }
+
+            // Case 1: "1997"
+            if raw.count == 4, let y = Int(raw), (1000...2999).contains(y) {
+                return y
+            }
+
+            // Case 2: "1997-09-26"
+            if raw.count >= 10, let y = Int(raw.prefix(4)), (1000...2999).contains(y) {
+                return y
+            }
+
+            // Case 3: Regex fallback (e.g. "Released: 1997")
+            let ns = raw as NSString
+            if let match = regex.firstMatch(in: raw, range: NSRange(location: 0, length: ns.length)) {
+                return Int(ns.substring(with: match.range)) ?? 0
+            }
+
+            return 0
+        }
+    }
+
+
 }
