@@ -34,9 +34,14 @@ struct MovieDetailView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack(alignment: .top) {
-                backgroundView(geometry: geometry)
-                contentView(geometry: geometry)
-                navigationBar
+                
+                if store.displayMovie.shouldShowButtons {
+                    backgroundView(geometry: geometry)
+                    contentView(geometry: geometry)
+                    navigationBar
+                } else {
+                    noDataView(geometry: geometry)
+                }
             }
         }
         .navigationBarHidden(true)
@@ -56,6 +61,13 @@ struct MovieDetailView: View {
     }
     
     // MARK: - Subviews
+    
+    private func noDataView(geometry: GeometryProxy) -> some View {
+        NoDataView.movieNoData(
+            frame: CGSize(width: geometry.size.width, height: geometry.size.height),
+            dismissAction: { dismiss() }
+        )
+    }
     
     private func backgroundView(geometry: GeometryProxy) -> some View {
         BackgroundView(
@@ -210,129 +222,5 @@ struct ErrorDetailView: View {
         }
         .padding()
         .frame(height: 200)
-    }
-}
-
-// MARK: - Background View
-struct BackgroundView: View {
-    let backdropURL: URL?
-    let posterURL: URL?
-    let geometry: GeometryProxy
-    let processedImage: UIImage?
-    
-    var body: some View {
-        Color.clear
-            .background(
-                Group {
-                    if let processedImage = processedImage {
-                        processedImageView
-                    } else {
-                        RemoteBlurBackground(
-                            url: backdropURL ?? posterURL,
-                            geometry: geometry
-                        )
-                    }
-                }
-            )
-            .frame(height: geometry.safeAreaInsets.top + 100)
-            .ignoresSafeArea()
-    }
-    
-    private var processedImageView: some View {
-        Image(uiImage: processedImage!)
-            .resizable()
-            .aspectRatio(contentMode: .fill)
-            .frame(width: geometry.size.width)
-            .blur(radius: 20)
-            .opacity(0.3)
-    }
-}
-
-// MARK: - Header View
-struct HeaderView: View {
-    let movie: Movie
-    let scrollOffset: CGFloat
-    let headerHeight: CGFloat
-    let geometry: GeometryProxy
-    let processedImage: UIImage?
-    
-    var body: some View {
-        ZStack(alignment: .bottomLeading) {
-            backgroundImage
-            movieInfoOverlay
-        }
-    }
-    
-    private var backgroundImage: some View {
-        Group {
-            if let processedImage = processedImage {
-                processedBackgroundImage
-            } else {
-                remoteBackgroundImage
-            }
-        }
-    }
-    
-    private var processedBackgroundImage: some View {
-        Image(uiImage: processedImage!)
-            .resizable()
-            .aspectRatio(contentMode: .fill)
-            .frame(width: geometry.size.width, height: headerHeight)
-            .clipped()
-            .offset(y: scrollOffset * 0.2) // ← PARALLAX EFFECT HERE
-            .overlay(gradientOverlay)
-    }
-    
-    private var remoteBackgroundImage: some View {
-        RemoteHeaderImage(
-            url: movie.backdropURL ?? movie.posterURL,
-            scrollOffset: scrollOffset, // ← Scroll offset passed for parallax
-            geometry: geometry,
-            headerHeight: headerHeight
-        )
-    }
-    
-    private var gradientOverlay: some View {
-        LinearGradient(
-            colors: [.clear, .black.opacity(0.7)],
-            startPoint: .top,
-            endPoint: .bottom
-        )
-    }
-    
-    private var movieInfoOverlay: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(movie.title)
-                .font(.system(size: 32, weight: .bold))
-                .foregroundColor(.white)
-                .shadow(color: .black.opacity(0.8), radius: 4, x: 0, y: 2)
-            
-            HStack(spacing: 20) {
-                InfoBadgeView.rating(movie.voteAverage)
-                InfoBadgeView.year(movie.releaseDate ?? "Unknown")
-                InfoBadgeView.mediaType(movie.mediaType)
-            }
-        }
-        .padding(.horizontal, 24)
-        .padding(.bottom, 24)
-    }
-}
-
-// MARK: - Rounded Corner Shape
-struct RoundedCorner: Shape {
-    var radius: CGFloat = .infinity
-    var corners: UIRectCorner = .allCorners
-    
-    func path(in rect: CGRect) -> Path {
-        let path = UIBezierPath(roundedRect: rect, byRoundingCorners: corners, cornerRadii: CGSize(width: radius, height: radius))
-        return Path(path.cgPath)
-    }
-}
-
-// MARK: - Scroll Offset Preference Key
-struct ViewOffsetKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value += nextValue()
     }
 }

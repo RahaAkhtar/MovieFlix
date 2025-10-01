@@ -32,7 +32,8 @@ final class MovieService: MovieServiceProtocol {
         }
         
         let request = Request<OMDbSearchResponse>(url: url)
-        let response = try await httpClient.send(request)
+        //let response = try await httpClient.send(request)
+        let response = try await httpClient.sendWithRetry(request)
         
         return try processMoviesResponse(response)
     }
@@ -43,7 +44,8 @@ final class MovieService: MovieServiceProtocol {
         }
         
         let request = Request<OMDbMovieDetail>(url: url)
-        let response = try await httpClient.send(request)
+        //let response = try await httpClient.send(request)
+        let response = try await httpClient.sendWithRetry(request)
         
         return response.toMovie()
     }

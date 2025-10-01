@@ -65,6 +65,14 @@ extension Movie {
         return hasOverview && hasStaff && hasRuntime && hasBudget
     }
     
+    var hasImages: Bool {
+        backdropURL != nil || posterURL != nil
+    }
+    
+    var shouldShowButtons: Bool {
+        hasCompleteData || hasImages
+    }
+    
     // Helper to get IMDb ID from the id
     var imdbID: String {
         return "tt\(id)" // Convert numeric ID back to IMDb format

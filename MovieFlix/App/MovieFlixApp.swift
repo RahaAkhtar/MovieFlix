@@ -27,17 +27,29 @@ struct MovieFlixApp: App {
             )
         }
     }
-    
-    private func configureKingfisher() {
-        // Set up cache
+
+    func configureKingfisher() {
+        // 🔹 Disk + Memory cache
         let cache = ImageCache.default
-        cache.memoryStorage.config.totalCostLimit = 1024 * 1024 * 100 // 100 MB
-        cache.diskStorage.config.sizeLimit = 1024 * 1024 * 500 // 500 MB
+        cache.memoryStorage.config.totalCostLimit = 200 * 1024 * 1024  // 200 MB in memory
+        cache.diskStorage.config.sizeLimit = 1 * 1024 * 1024 * 1024    // 1 GB on disk
         
-        // Set up downloader
-        let downloader = ImageDownloader.default
-        downloader.downloadTimeout = 30.0
+        // 🔹 Set cache expiration
+        cache.memoryStorage.config.expiration = .seconds(60 * 10) // 10 min in RAM
+        cache.diskStorage.config.expiration = .days(7)            // 7 days on disk
+        
+        // 🔹 Downloader settings
+        let downloader = KingfisherManager.shared.downloader
+        downloader.downloadTimeout = 15 // per request timeout
+        
+        // 🔹 Global retry strategy
+        KingfisherManager.shared.defaultOptions = [
+            .transition(.fade(0.25)),
+            .cacheOriginalImage,
+            .retryStrategy(DelayRetryStrategy(maxRetryCount: 3, retryInterval: .seconds(2)))
+        ]
     }
+
     
     private func configureDependencies() {
         DependencyConfiguration.configure()

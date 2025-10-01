@@ -61,77 +61,24 @@ struct KFPosterImage: View {
     }
     
     var body: some View {
-        KFImageView(
+        RetryableKFImage(
             url: url,
-            placeholder: Image(systemName: "film.fill"),
-            contentMode: .fill,
-            width: 60,
-            height: 90
+            fallbackURL: nil,
+            imageContentMode: .fill,
+            blur: 0,
+            frame: CGSize(width: 120, height: 180)
         )
-        .cornerRadius(cornerRadius)
-    }
-}
-
-// Movie Backdrop Style (for headers)
-struct KFBackdropImage: View {
-    let url: URL?
-    let height: CGFloat
-    
-    init(url: URL?, height: CGFloat = 200) {
-        self.url = url
-        self.height = height
-    }
-    
-    var body: some View {
-        KFImageView(
-            url: url,
-            placeholder: Image(systemName: "photo.on.rectangle"),
-            contentMode: .fill
-        )
-        .frame(height: height)
         .clipped()
-    }
-}
-
-// Circular Avatar Style
-struct KFAvatarImage: View {
-    let url: URL?
-    let size: CGFloat
-    
-    init(url: URL?, size: CGFloat = 50) {
-        self.url = url
-        self.size = size
-    }
-    
-    var body: some View {
-        KFImageView(
-            url: url,
-            placeholder: Image(systemName: "person.circle.fill"),
-            contentMode: .fill,
-            width: size,
-            height: size
-        )
-        .clipShape(Circle())
-    }
-}
-
-// Grid Item Style
-struct KFGridImage: View {
-    let url: URL?
-    let aspectRatio: CGFloat
-    
-    init(url: URL?, aspectRatio: CGFloat = 0.67) { // 2:3 aspect ratio
-        self.url = url
-        self.aspectRatio = aspectRatio
-    }
-    
-    var body: some View {
-        KFImageView(
-            url: url,
-            placeholder: Image(systemName: "film"),
-            contentMode: .fill
-        )
-        .aspectRatio(aspectRatio, contentMode: .fit)
         .cornerRadius(8)
+        .shadow(radius: 2)
+//        KFImageView(
+//            url: url,
+//            placeholder: Image(systemName: "film.fill"),
+//            contentMode: .fill,
+//            width: 60,
+//            height: 90
+//        )
+//        .cornerRadius(cornerRadius)
     }
 }
+
